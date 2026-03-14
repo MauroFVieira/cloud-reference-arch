@@ -1,0 +1,27 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+
+# Node
+node_modules/
+dist/
+.env.local
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+*.tfvars
+!*.tfvars.example
+
+# Secrets
+.env
+.env.aws
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db

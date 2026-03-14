@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  scaffold-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify monorepo structure
+        run: |
+          for dir in src/backend src/frontend infra/terraform infra/k8s \
+                     infra/docker infra/localstack tests/integration \
+                     tests/e2e tests/load tests/security agent runbooks docs; do
+            [ -d "$dir" ] && echo "✓ $dir" || (echo "✗ $dir missing" && exit 1)
+          done
