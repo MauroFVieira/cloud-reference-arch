@@ -4,6 +4,25 @@
 
 ## 2026-03-14
 
+### S0c · GitHub Actions Self-Hosted Runner ✅
+
+| | |
+|---|---|
+| **Status** | Done |
+| **Duration** | 20 min |
+| **Pause point reached** | Runner showing `Idle` in GitHub → Settings → Actions → Runners |
+| **Machine** | DISCWORLD (Linux) |
+
+**What was done:**
+- Downloaded and extracted GitHub Actions runner on DISCWORLD
+- Configured runner with name `DISCWORLD` and labels `self-hosted,linux,discworld`
+- Installed and started as a systemd service
+- Runner confirmed `Idle` in GitHub ✅
+
+**Runbook:** `runbooks/S0c-github-actions-runner.md`
+
+---
+
 ### S0b · llama.cpp Setup & First Token ✅
 
 | | |
