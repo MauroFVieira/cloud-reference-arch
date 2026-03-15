@@ -4,6 +4,38 @@
 
 ## 2026-03-15
 
+### Phase 1b · Terraform Modules (S3 + DynamoDB) 🔧
+
+| | |
+|---|---|
+| **Status** | CI run in progress — awaiting final green |
+| **Duration** | ~2h (manual, no agent) |
+| **Machine** | DISCWORLD (CI execution) · MIDDLEEARTH (repo) |
+
+**What was done:**
+- Installed Terraform `1.14.7` via direct zip download — apt repo approach abandoned
+  - `gpg --dearmor` pipe hung with default flags; resolved with `--batch --yes`, but apt subsequently refused to read the HashiCorp repo
+  - Zip install from `releases.hashicorp.com` worked cleanly; binary moved to `/usr/local/bin/`
+- Installed `tflocal` with `sudo pip install terraform-local --break-system-packages`
+  - Installing without `sudo` placed the binary in `~/.local/bin`, not on PATH for the runner; `sudo` installs to `/usr/local/bin` instead
+- Installed AWS CLI v2 system-wide on DISCWORLD
+  - Required for CI assertion steps (`aws s3api head-bucket`, `aws dynamodb describe-table`)
+  - `aws: command not found` surfaced mid-CI; resolved by installing via official zip installer
+- All IaC files created and placed in the repo manually (no agent involvement)
+- `ci.yml` updated incrementally across multiple pushes as issues surfaced:
+  - Removed `Install tflocal` step (sudo without terminal error)
+  - Removed `Install AWS CLI` step (same reason)
+- Committing IaC files together with `runbooks/phase-1b.md` to trigger the next CI run
+
+**Lessons learned:**
+- Phase 1b required no agent — the IaC is fully specified in the runbook and straightforward to place manually
+- Incomplete prerequisite instructions (missing AWS CLI, wrong install method for tflocal) caused the 2h duration; runbook has been updated to reflect the correct steps
+- Pattern established: install all CI tools system-wide on DISCWORLD once; never install inside CI steps
+
+**Runbook:** `runbooks/phase-1b.md`
+
+---
+
 ### Phase 1a · Docker Compose & LocalStack ✅
 
 | | |
