@@ -2,6 +2,33 @@
 
 ---
 
+## 2026-03-15
+
+### Phase 1a · Docker Compose & LocalStack ✅
+
+| | |
+|---|---|
+| **Status** | Done |
+| **Duration** | 30 min |
+| **Pause point reached** | `curl http://DISCWORLD:4566/_localstack/health` returning `running` for all active services, verified from MIDDLEEARTH |
+| **Machine** | DISCWORLD (setup) · MIDDLEEARTH (verification) |
+
+**What was done:**
+- Installed Docker on DISCWORLD
+- Created `infra/docker/localstack.docker-compose.yml` with LocalStack CE 3, named volume for state persistence, `restart: unless-stopped`
+- Created `.env.example` in repo root (committed); `.env` with real token on DISCWORLD (gitignored)
+- Added `LOCALSTACK_AUTH_TOKEN` as a GitHub Actions repository secret
+- Started LocalStack via Docker Compose; health check confirmed from MIDDLEEARTH ✅
+
+**Observations:**
+- `cognito-idp` does not appear in the LocalStack CE health response — not listed as running or disabled
+- Decision: drop `cognito-idp` from the `SERVICES` env var; use **Keycloak exclusively** for authentication throughout the project (Phases 5+). LocalStack Cognito will not be used. The cloud-parity story for auth becomes: Keycloak locally → real AWS Cognito for AWS deployments (configured via Terraform, not emulated locally)
+- All other configured services (`s3`, `dynamodb`, `sqs`, `secretsmanager`, `apigateway`) confirmed running ✅
+
+**Runbook:** `runbooks/phase-1a.md`
+
+---
+
 ## 2026-03-14
 
 ### S0c · GitHub Actions Self-Hosted Runner ✅
