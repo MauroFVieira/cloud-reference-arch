@@ -8,14 +8,94 @@ on:
 
 jobs:
   scaffold-check:
+    name: Verify monorepo structure
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Verify monorepo structure
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify directory structure
         run: |
-          for dir in src/backend src/frontend infra/terraform infra/k8s \
-                     infra/docker infra/localstack tests/integration \
-                     tests/e2e tests/load tests/security agent runbooks docs; do
-            [ -d "$dir" ] && echo "✓ $dir" || (echo "✗ $dir missing" && exit 1)
+          DIRS=(
+            "src/backend"
+            "src/frontend"
+            "infra/terraform"
+            "infra/k8s"
+            "infra/docker"
+            "infra/localstack"
+            "tests/integration"
+            "tests/e2e"
+            "tests/load"
+            "tests/security"
+            "agent"
+            "runbooks"
+            "docs"
+          )
+
+          ALL_OK=true
+          for dir in "${DIRS[@]}"; do
+            if [ -d "$dir" ]; then
+              echo "✓ $dir"
+            else
+              echo "✗ MISSING: $dir"
+              ALL_OK=false
+            fi
           done
+
+          if [ "$ALL_OK" = false ]; then
+            echo ""
+            echo "One or more required directories are missing."
+            exit 1
+          fi
+
+          echo ""
+          echo "All required directories present."
+
+  terraform-localstack:
+    name: Terraform plan/apply/destroy (LocalStack)
+    runs-on: [self-hosted, linux, discworld]
+    needs: scaffold-check
+
+    env:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+      LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
+
+    defaults:
+      run:
+        working-directory: infra/terraform
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Copy tfvars
+        run: cp terraform.tfvars.example terraform.tfvars
+
+      - name: Init
+        run: tflocal init
+
+      - name: Validate
+        run: tflocal validate
+
+      - name: Apply
+        run: tflocal apply -auto-approve
+
+      - name: Assert S3 bucket exists
+        run: |
+          BUCKET_NAME=$(tflocal output -raw s3_bucket_name)
+          aws --endpoint-url=http://localhost:4566 s3api head-bucket --bucket "$BUCKET_NAME"
+          echo "✓ S3 bucket $BUCKET_NAME exists"
+
+      - name: Assert DynamoDB table exists
+        run: |
+          TABLE_NAME=$(tflocal output -raw dynamodb_table_name)
+          STATUS=$(aws --endpoint-url=http://localhost:4566 dynamodb describe-table --table-name "$TABLE_NAME" --query "Table.TableStatus" --output text)
+          echo "Table status: $STATUS"
+          echo "✓ DynamoDB table $TABLE_NAME exists"
+
+      - name: Destroy
+        if: always()
+        run: tflocal destroy -auto-approve
