@@ -1,0 +1,29 @@
+Phase 2a: PostgreSQL container + .NET 8 Web API scaffold with EF Core.
+
+Add PostgreSQL 16 to infra/docker/localstack.docker-compose.yml alongside the existing LocalStack service. Use image postgres:16, container_name postgres, port 5432:5432, environment POSTGRES_USER=appuser POSTGRES_PASSWORD=apppassword POSTGRES_DB=cloudref, a named volume postgres_data mounted at /var/lib/postgresql/data, restart: unless-stopped, and a healthcheck using pg_isready.
+
+Scaffold a .NET 8 Web API at src/backend/CloudRef.Api using: dotnet new webapi -n CloudRef.Api --framework net8.0
+
+Add NuGet packages from inside src/backend/CloudRef.Api:
+  dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL
+  dotnet add package Microsoft.EntityFrameworkCore.Design
+  dotnet add package Microsoft.AspNetCore.OpenApi
+
+Create src/backend/CloudRef.Api/Domain/Product.cs with properties: Id (int), Name (string max 200 required), Description (string max 1000), Price (decimal precision 18,2), CreatedAt (DateTime UTC default).
+
+Create src/backend/CloudRef.Api/Data/AppDbContext.cs extending DbContext with a Products DbSet<Product> and OnModelCreating constraints matching the above.
+
+Replace the contents of src/backend/CloudRef.Api/Program.cs to: register AddDbContext<AppDbContext> using the DefaultConnection connection string with UseNpgsql, call db.Database.Migrate() on startup inside a using scope, add UseSwagger and UseSwaggerUI in Development, add MapControllers. Add "public partial class Program {}" at the bottom of the file.
+
+Create src/backend/CloudRef.Api/appsettings.Development.json with:
+  ConnectionStrings.DefaultConnection = "Host=DISCWORLD;Port=5432;Database=cloudref;Username=appuser;Password=apppassword"
+
+Add an empty DefaultConnection placeholder to appsettings.json (value will be supplied by environment variable in CI and production).
+
+Run dotnet ef migrations add InitialCreate from inside src/backend/CloudRef.Api to generate the Migrations/ folder.
+
+Verify with: dotnet build src/backend/CloudRef.Api/CloudRef.Api.csproj
+The build must exit 0 before calling task_complete.
+
+Do not apply the migration (it runs automatically on startup via db.Database.Migrate()).
+Do not add any git commands.

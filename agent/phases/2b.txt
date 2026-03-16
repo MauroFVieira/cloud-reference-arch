@@ -1,0 +1,51 @@
+Phase 2b: Products CRUD endpoints and Testcontainers integration tests.
+
+Create src/backend/CloudRef.Api/Controllers/ProductsController.cs with the following endpoints:
+  GET    /api/products           — returns all products ordered by Id
+  GET    /api/products/{id:int}  — returns one product or 404
+  POST   /api/products           — creates a product, sets CreatedAt to UtcNow, returns 201
+  PUT    /api/products/{id:int}  — updates a product, returns 204 or 400 if id mismatch
+  DELETE /api/products/{id:int}  — deletes a product, returns 204 or 404
+
+Create an xUnit test project at tests/integration/CloudRef.Integration.Tests:
+  dotnet new xunit -n CloudRef.Integration.Tests --output tests/integration/CloudRef.Integration.Tests
+
+Add packages to the test project:
+  dotnet add package Testcontainers.PostgreSql
+  dotnet add package Microsoft.AspNetCore.Mvc.Testing
+
+Add a project reference from the test project to the API project.
+
+Create tests/integration/CloudRef.Integration.Tests/PostgresFixture.cs implementing IAsyncLifetime. In InitializeAsync: start a PostgreSqlContainer (postgres:16, database testdb, username testuser, password testpassword), create a WebApplicationFactory<Program> with UseEnvironment("Testing") that removes the existing DbContextOptions<AppDbContext> registration and re-registers it using the container connection string, then calls db.Database.MigrateAsync(). Expose HttpClient as a public property. Make the WebApplicationFactory field public (needed by the idempotency test). Dispose both factory and container in DisposeAsync.
+
+Create tests/integration/CloudRef.Integration.Tests/ProductsEndpointTests.cs with IClassFixture<PostgresFixture> covering:
+  - GetAll returns 200 when table is empty
+  - Create returns 201 and the product is retrievable by id
+  - Update returns 204 and the change is visible on subsequent GET
+  - Delete returns 204 and subsequent GET returns 404
+  - GetById returns 404 for a non-existent id
+  - Calling MigrateAsync again on an already-migrated database does not throw
+
+Create a solution file at the repo root:
+  dotnet new sln -n CloudRef
+  dotnet sln add src/backend/CloudRef.Api/CloudRef.Api.csproj
+  dotnet sln add tests/integration/CloudRef.Integration.Tests/CloudRef.Integration.Tests.csproj
+
+Add a CI job to .github/workflows/ci.yml after the existing terraform-localstack job:
+
+  integration-tests:
+    name: Integration tests (PostgreSQL via Testcontainers)
+    runs-on: [self-hosted, linux, discworld]
+    needs: scaffold-check
+    env:
+      ASPNETCORE_ENVIRONMENT: Testing
+      DOTNET_NOLOGO: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run integration tests
+        run: dotnet test tests/integration/CloudRef.Integration.Tests/ --configuration Release --logger "console;verbosity=normal"
+
+Verify with: dotnet build CloudRef.sln
+The build must exit 0 before calling task_complete.
+Do not add any git commands.
