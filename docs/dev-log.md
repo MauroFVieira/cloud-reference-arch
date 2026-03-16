@@ -2,6 +2,59 @@
 
 ---
 
+## 2026-03-16
+
+### S0d · LangGraph Agent Scaffold ✅
+
+| | |
+|---|---|
+| **Status** | Done |
+| **Duration** | ~4h (environment issues) |
+| **Pause point reached** | Smoke test green — one commit pushed to remote, CI passed, documenter wrote runbook entry |
+| **API cost (smoke test, clean run)** | $0.03 |
+| **Machine** | MIDDLEEARTH (WSL2) |
+
+**What was done:**
+- Created GitHub App `cloud-ref-agent` with Contents R/W + Actions Read permissions; generated private key
+- Provisioned Anthropic API key (second key — first was created before credits, entered broken state)
+- Set up Python venv with LangGraph, anthropic, PyJWT, httpx
+- Built sandbox Docker image (`ubuntu:24.04` + .NET 8 + Terraform + tflocal + AWS CLI)
+- Wrote full agent scaffold: `orchestrator.py`, `state.py`, `config.py`, `smoke_test.py`, `tools/`, `llm/`, `nodes/`
+- Smoke test passed on final run: file written, committed, pushed, CI polled to green, runbook entry committed ✅
+
+**Issues encountered and resolved:**
+
+| Issue | Resolution |
+|---|---|
+| Docker installed via snap — `systemctl enable docker` failed | Replaced snap Docker with apt Docker (snap socket race condition never resolved) |
+| `docker.sock` owned by `root:root` despite `--group docker` flag on dockerd | snap bug; resolved by switching to apt Docker which creates socket correctly |
+| `400 credit balance too low` on first API key | Key created before credits were added; generated new key after confirming billing — worked immediately |
+| `messages.N.content.0: Input should be a valid dictionary` | `None` entry in content_blocks list when Claude returned tool calls with no text; fixed with conditional block construction |
+| `git push` timeout (300s) | Sandbox container had no git credentials; fixed by injecting GitHub App token via mounted `.gitconfig` with URL rewrite |
+| Agent looping / double commits | Claude issuing git commands independently; fixed by blocking git in `execute_tool` and routing all commits through `task_complete` handler |
+| Files written as root in repo | `docker run` without `--user` flag; fixed with `--user $(uid):$(gid)` and `/home/user` directory in image |
+| `fatal: dubious ownership at /repo` | `safe.directory` not persisting across container runs; fixed by baking into Dockerfile |
+| `httpx.InvalidURL: '\r' at position 50` | CRLF line endings in `.env` file from Windows editing; fixed with `sed -i 's/\r//'` |
+| `TypeError: Issuer (iss) must be a string` | `GITHUB_APP_ID` cast to int; fixed with `str()` in JWT payload |
+| `401 Unauthorized` on installations endpoint | Installation ID had CRLF; resolved after `.env` fix |
+| Enter at human checkpoint did nothing | User pressed Enter in new terminal, not original agent terminal; added explicit "return to THIS terminal" message |
+
+**Architecture decisions confirmed during implementation:**
+- Git owned entirely by orchestrator — Claude never calls git commands; only `task_complete` triggers a commit
+- GitHub App token injected per-run via temp `.gitconfig` mounted into sandbox — no persistent secrets in container
+- Message history capped at 6 exchanges + initial task message — reduces cost from ~$0.17/run to ~$0.03/run
+- Tool results truncated to 3,000 chars — prevents large build outputs from bloating context
+
+**Actual vs predicted cost:**
+- Original estimate: $7–15 total for all 13 phases
+- Revised estimate after debugging runs: $40–80 total
+- Clean smoke test: $0.03 (in line with revised per-task estimate)
+- Debugging iterations before fixes: $0.17, $0.05, $0.03 (decreasing as bugs resolved)
+
+**Runbook:** `runbooks/S0d-agent-scaffold.md`
+
+---
+
 ## 2026-03-15
 
 ### Phase 1b · Terraform Modules (S3 + DynamoDB) 🔧
