@@ -85,7 +85,7 @@ TOOLS = [
     }
 ]
 
-def call(system: str, messages: list[dict]) -> tuple[str, list[dict]]:
+def call(system: str, messages: list[dict]) -> tuple[str, list[dict], dict]:
     """
     Send a conversation to Claude Sonnet with tools.
     Returns (text_response, tool_calls).
@@ -105,4 +105,9 @@ def call(system: str, messages: list[dict]) -> tuple[str, list[dict]]:
             text += block.text
         elif block.type == "tool_use":
             tool_calls.append({"name": block.name, "input": block.input, "id": block.id})
-    return text, tool_calls
+    usage = {
+        "input_tokens": response.usage.input_tokens,
+        "output_tokens": response.usage.output_tokens,
+        "cost_usd": (response.usage.input_tokens * 3 + response.usage.output_tokens * 15) / 1_000_000
+    }
+    return text, tool_calls, usage

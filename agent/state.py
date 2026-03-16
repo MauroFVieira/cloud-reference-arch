@@ -13,3 +13,4 @@ class AgentState(BaseModel):
     task_complete: bool = False
     needs_human: bool = False
     error_message: Optional[str] = None
+    accumulated_cost_usd: float = 0.0

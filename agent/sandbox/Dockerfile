@@ -18,6 +18,7 @@ RUN wget https://releases.hashicorp.com/terraform/1.14.7/terraform_1.14.7_linux_
 
 # tflocal + AWS CLI
 RUN pip install terraform-local --break-system-packages
+RUN pip install langgraph langchain-core anthropic pydantic --break-system-packages
 RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip \
     && unzip /tmp/awscliv2.zip -d /tmp \
     && /tmp/aws/install \

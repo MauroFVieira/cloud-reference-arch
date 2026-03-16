@@ -60,13 +60,14 @@ def execute_tool(tool_name: str, tool_input: dict, state: AgentState) -> tuple[s
             if "nothing to commit" in stdout + stderr:
                 logger.info("Nothing to commit — already clean")
             else:
-                logger.error(f"Commit failed: {stderr}")
-                return f"Commit failed: {stderr}", state
+                logger.error(f"git commit failed: {stderr}")
+                return f"git commit failed: {stderr}", state
 
         # Push
-        code, stdout, stderr = run_in_sandbox("cd /repo && git push origin main")
+        code, stdout, stderr = run_in_sandbox("cd /repo && git push")
         if code != 0:
-            return f"Push failed: {stderr}", state
+            logger.error(f"git push failed: {stderr}")
+            return f"git push failed: {stderr}", state
 
         # Capture the SHA for ci_watcher
         _, sha_out, _ = run_in_sandbox("cd /repo && git rev-parse HEAD")
@@ -81,6 +82,35 @@ def execute_tool(tool_name: str, tool_input: dict, state: AgentState) -> tuple[s
     return f"Unknown tool: {tool_name}", state
 
 MAX_HISTORY_MESSAGES = 6   # keep last N messages in the rolling window
+
+CRITIC_SYSTEM_PROMPT = (
+    "You are a code reviewer. Identify ambiguities, missing prerequisites, and likely failure "
+    "modes in the task description. Be concise."
+)
+
+def critic_node(state: AgentState) -> AgentState:
+    """Pre-flight critic: reviews the task description before the agent begins work."""
+    # Build the repo file tree
+    file_tree = "\n".join(list_directory("."))
+
+    user_message = (
+        f"Task: {state.current_task}\n\n"
+        f"Repository file tree:\n{file_tree}"
+    )
+
+    logger.info("Critic node: reviewing task description...")
+    text, _ = claude_call(
+        CRITIC_SYSTEM_PROMPT,
+        [{"role": "user", "content": user_message}]
+    )
+
+    # Append the critic's feedback to error_message for visibility
+    existing = state.error_message or ""
+    separator = "\n\n" if existing else ""
+    updated_error = existing + separator + f"[Critic]\n{text}"
+
+    logger.info(f"Critic feedback: {text[:200]}...")
+    return state.model_copy(update={"error_message": updated_error})
 
 def agent_node(state: AgentState) -> AgentState:
     """Core agent loop: Claude reasons, calls tools, we execute them, repeat."""
@@ -98,6 +128,14 @@ def agent_node(state: AgentState) -> AgentState:
         elapsed = time.monotonic() - t0
         logger.info(f"Claude responded in {elapsed:.1f}s — tools={[tc['name'] for tc in tool_calls]}")
         print(f"  [claude] responded in {elapsed:.1f}s — calling: {[tc['name'] for tc in tool_calls]}", flush=True)
+        state = state.model_copy(update={
+            "accumulated_cost_usd": state.accumulated_cost_usd + usage["cost_usd"]
+        })
+        if state.accumulated_cost_usd > MAX_TASK_COST_USD:
+            return state.model_copy(update={
+                "needs_human": True,
+                "error_message": f"Cost ceiling reached: ${state.accumulated_cost_usd:.2f} > ${MAX_TASK_COST_USD}"
+            })
         if not tool_calls:
             break
 
@@ -182,18 +220,19 @@ def human_checkpoint_node(state: AgentState) -> AgentState:
     print(f"Reason: {state.error_message or 'Max retries reached'}")
     print("=" * 60)
     input("Press Enter when ready to continue, or Ctrl+C to stop...")
-    input()
     print("Resuming agent...", flush=True)
     return state.model_copy(update={"needs_human": False, "retry_count": 0, "ci_logs": None})
 
 def build_graph() -> StateGraph:
     graph = StateGraph(AgentState)
+    graph.add_node("critic", critic_node)
     graph.add_node("agent", agent_node)
     graph.add_node("ci_watcher", ci_watcher_node)
     graph.add_node("documenter", documenter_node)
     graph.add_node("human_checkpoint", human_checkpoint_node)
 
-    graph.set_entry_point("agent")
+    graph.set_entry_point("critic")
+    graph.add_edge("critic", "agent")
     graph.add_edge("agent", "ci_watcher")
     graph.add_conditional_edges("ci_watcher", route_after_ci, {
         "agent":             "agent",

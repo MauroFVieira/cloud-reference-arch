@@ -29,6 +29,7 @@ GITHUB_PRIVATE_KEY     = (CONFIG_DIR / "private-key.pem").read_text().strip()
 GITHUB_REPO            = os.getenv("GITHUB_REPO", "YOUR_USERNAME/cloud-reference-arch").strip()
 
 # Agent behaviour
-MAX_RETRIES    = 3      # fix attempts before pausing for human input
-POLL_INTERVAL  = 30     # seconds between CI status checks
-SANDBOX_IMAGE  = "cloud-ref-sandbox:latest"
+MAX_TASK_COST_USD = 0.50   # abort and request human input if exceeded
+MAX_RETRIES       = 3      # fix attempts before pausing for human input
+POLL_INTERVAL     = 30     # seconds between CI status checks
+SANDBOX_IMAGE     = "cloud-ref-sandbox:latest"
