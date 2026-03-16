@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # .NET 8 SDK
+RUN apt-get update && apt-get install -y libicu-dev && rm -rf /var/lib/apt/lists/*
 RUN wget https://dot.net/v1/dotnet-install.sh -O /tmp/dotnet-install.sh \
     && chmod +x /tmp/dotnet-install.sh \
     && /tmp/dotnet-install.sh --channel 8.0 --install-dir /usr/local/dotnet \

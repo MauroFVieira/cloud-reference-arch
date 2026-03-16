@@ -5,7 +5,7 @@ from agent.tools.shell import run_in_sandbox
 from agent.tools.files import read_file, write_file, list_directory
 from agent.tools.github import poll_until_complete, get_run_logs
 from agent.llm.claude_client import call as claude_call
-from agent.config import MAX_RETRIES
+from agent.config import MAX_RETRIES, MAX_TASK_COST_USD
 import logging
 import time
 
@@ -99,7 +99,7 @@ def critic_node(state: AgentState) -> AgentState:
     )
 
     logger.info("Critic node: reviewing task description...")
-    text, _ = claude_call(
+    text, _, _ = claude_call(
         CRITIC_SYSTEM_PROMPT,
         [{"role": "user", "content": user_message}]
     )
@@ -124,7 +124,7 @@ def agent_node(state: AgentState) -> AgentState:
         logger.info(f"Calling Claude (messages={len(messages)})...")
         print(f"  [claude] sending ({len(messages)} messages in history)...", flush=True)
         t0 = time.monotonic()
-        text, tool_calls = claude_call(SYSTEM_PROMPT, messages)
+        text, tool_calls, usage = claude_call(SYSTEM_PROMPT, messages)
         elapsed = time.monotonic() - t0
         logger.info(f"Claude responded in {elapsed:.1f}s — tools={[tc['name'] for tc in tool_calls]}")
         print(f"  [claude] responded in {elapsed:.1f}s — calling: {[tc['name'] for tc in tool_calls]}", flush=True)
@@ -200,7 +200,7 @@ def route_after_ci(state: AgentState) -> str:
     return "agent"  # fix and retry
 
 def documenter_node(state: AgentState) -> AgentState:
-    _, tool_calls = claude_call(
+    _, tool_calls, _ = claude_call(
         "You are a technical writer. Write a concise runbook entry for the task that was just completed.",
         [{"role": "user", "content": (
             f"Task completed: {state.current_task}\n"

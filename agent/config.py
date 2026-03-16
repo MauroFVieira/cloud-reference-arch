@@ -1,5 +1,8 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv(Path.home() / ".config/cloud-ref-agent/.env")
 
 # Command timeouts (seconds) — review logs after each phase to tighten these
 TIMEOUTS = {

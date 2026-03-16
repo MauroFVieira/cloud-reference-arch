@@ -9,17 +9,31 @@ from agent.config import (
 
 def _generate_jwt() -> str:
     now = int(datetime.now(timezone.utc).timestamp())
-    payload = {"iat": now - 60, "exp": now + 600, "iss": str(GITHUB_APP_ID)}
+    payload = {"iat": now - 60, "exp": now + 540, "iss": str(GITHUB_APP_ID)}
     return jwt.encode(payload, GITHUB_PRIVATE_KEY, algorithm="RS256")
 
 def _get_installation_token() -> str:
-    app_jwt = _generate_jwt()
-    resp = httpx.post(
-        f"https://api.github.com/app/installations/{GITHUB_INSTALLATION_ID}/access_tokens",
-        headers={"Authorization": f"Bearer {app_jwt}", "Accept": "application/vnd.github+json"}
-    )
-    resp.raise_for_status()
-    return resp.json()["token"]
+    """Get a fresh installation token. Retries once on 401 in case of clock skew."""
+    for attempt in range(2):
+        app_jwt = _generate_jwt()
+        resp = httpx.post(
+            f"https://api.github.com/app/installations/{GITHUB_INSTALLATION_ID}/access_tokens",
+            headers={
+                "Authorization": f"Bearer {app_jwt}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28"
+            }
+        )
+        if resp.status_code == 201:
+            return resp.json()["token"]
+        if attempt == 0 and resp.status_code == 401:
+            # Possible clock skew — sync and retry once
+            import subprocess, time
+            subprocess.run(["sudo", "hwclock", "--hctosys"], capture_output=True)
+            time.sleep(1)
+            continue
+        resp.raise_for_status()
+    raise RuntimeError("Failed to get installation token after retry")
 
 def get_headers() -> dict:
     token = _get_installation_token()
