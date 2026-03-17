@@ -25,5 +25,9 @@ Run dotnet ef migrations add InitialCreate from inside src/backend/CloudRef.Api 
 Verify with: dotnet build src/backend/CloudRef.Api/CloudRef.Api.csproj
 The build must exit 0 before calling task_complete.
 
+Before calling task_complete, verify the connection string contains DISCWORLD not localhost:
+  grep -r "DISCWORLD" src/backend/CloudRef.Api/appsettings.Development.json
+This must exit 0.
+
 Do not apply the migration (it runs automatically on startup via db.Database.Migrate()).
 Do not add any git commands.

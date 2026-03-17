@@ -6,7 +6,7 @@ from agent.tools.files import read_file, write_file, list_directory
 from agent.tools.github import poll_until_complete, get_run_logs
 from agent.llm.claude_client import call as claude_call
 from agent.llm.qwen_client import call_with_tools as qwen_call
-from agent.config import MAX_RETRIES, MAX_TASK_COST_USD, MAX_HISTORY_MESSAGES
+from agent.config import MAX_RETRIES, MAX_TASK_COST_USD
 import logging
 import time
 

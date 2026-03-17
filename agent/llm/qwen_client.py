@@ -100,7 +100,7 @@ def call_with_tools(system: str, messages: list[dict], tools: list[dict]) -> tup
             "max_tokens": 2048,
             "temperature": 0.1
         },
-        timeout=300
+        timeout=3600
     )
     response.raise_for_status()
 

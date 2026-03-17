@@ -30,6 +30,9 @@ dist/
 .env.aws
 !.env.example
 
+# .NET secrets
+**/appsettings.Development.json
+
 # OS
 .DS_Store
 Thumbs.db
