@@ -10,6 +10,12 @@ RUN wget https://dot.net/v1/dotnet-install.sh -O /tmp/dotnet-install.sh \
     && chmod +x /tmp/dotnet-install.sh \
     && /tmp/dotnet-install.sh --channel 8.0 --install-dir /usr/local/dotnet \
     && ln -sf /usr/local/dotnet/dotnet /usr/local/bin/dotnet
+RUN mkdir -p /tmp/warmup && cd /tmp/warmup \
+    && dotnet new webapi -n warmup --framework net8.0 \
+    && dotnet add warmup/warmup.csproj package Npgsql.EntityFrameworkCore.PostgreSQL --version 8.0.11 \
+    && dotnet add warmup/warmup.csproj package Microsoft.EntityFrameworkCore.Design --version 8.0.11 \
+    && dotnet add warmup/warmup.csproj package Microsoft.AspNetCore.OpenApi \
+    && rm -rf /tmp/warmup
 
 # Terraform
 RUN wget https://releases.hashicorp.com/terraform/1.14.7/terraform_1.14.7_linux_amd64.zip \

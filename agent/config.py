@@ -7,7 +7,7 @@ load_dotenv(Path.home() / ".config/cloud-ref-agent/.env")
 # Command timeouts (seconds) — review logs after each phase to tighten these
 TIMEOUTS = {
     "git":        30,    # commit, push, pull
-    "dotnet":    120,    # build, test, restore
+    "dotnet":    360,    # build, test, restore
     "terraform":  90,    # init, apply, destroy
     "docker":    180,    # docker build inside sandbox
     "default":    60,
